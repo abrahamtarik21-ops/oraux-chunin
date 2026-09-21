@@ -51,7 +51,7 @@ Le partage est **déjà configuré** : la base Firebase du projet `oral-chunin` 
 dans `FIREBASE_CONFIG` en tête du script, et l'application rejoint d'office la salle commune
 `zenkai`. Les examinateurs n'ont rien à faire d'autre qu'ouvrir le site :
 
-**https://abrahamtarik21-ops.github.io/oraux-chunin/**
+**https://kurouko-zenkai.github.io/oraux-chunin/**
 
 `CONFIGURATION.md` décrit comment cette base a été créée (utile si un jour il faut la
 refaire sur un autre compte). Hors ligne, l'application repasse automatiquement en mode local.
