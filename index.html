@@ -169,9 +169,6 @@ td.ok{color:var(--ok)}td.ko{color:var(--ko)}
         <select id="nature">
           <option value="">— Nature —</option>
           <option>Katon</option><option>Fūton</option><option>Raiton</option><option>Doton</option><option>Suiton</option>
-          <option>Katon + Fūton</option><option>Katon + Raiton</option><option>Katon + Doton</option><option>Katon + Suiton</option>
-          <option>Fūton + Raiton</option><option>Fūton + Doton</option><option>Fūton + Suiton</option>
-          <option>Raiton + Doton</option><option>Raiton + Suiton</option><option>Doton + Suiton</option>
           <option>Aucune / inconnue</option>
         </select>
       </div>
@@ -434,6 +431,7 @@ function setState(obj){
 }
 function clearFiche(keepTimer){
   $('prenom').value=''; $('nom').value=''; $('comment').value=''; $('annees').value=''; $('nature').value=''; $('special').checked=false;
+  $('nature').querySelectorAll('option[data-legacy]').forEach(o=>o.remove());
   setState(null); editId=null;
   $('counter').textContent=`Candidat n°${registre.length+1}`;
   $('save').textContent='Enregistrer et passer au suivant';
@@ -679,7 +677,9 @@ function save(){
 function editEntry(id){
   const e=registre.find(x=>x.id===id); if(!e) return;
   const n=registre.indexOf(e)+1;
-  $('prenom').value=e.prenom; $('nom').value=e.nom; $('comment').value=e.comment||''; $('annees').value=e.annees||''; $('nature').value=e.nature||''; $('special').checked=!!e.special;
+  $('prenom').value=e.prenom; $('nom').value=e.nom; $('comment').value=e.comment||''; $('annees').value=e.annees||'';
+  const nat=$('nature'); if(e.nature && ![...nat.options].some(o=>o.value===e.nature)){ const o=document.createElement('option'); o.textContent=e.nature; o.dataset.legacy='1'; nat.appendChild(o); }
+  nat.value=e.nature||''; $('special').checked=!!e.special;
   setState(e); editId=id; timerSet(e.duree||0);
   $('counter').textContent=`Modification du candidat n°${n}`; $('save').textContent='Mettre à jour la fiche'; pushPresence(true);
   window.scrollTo({top:0,behavior:'smooth'});
