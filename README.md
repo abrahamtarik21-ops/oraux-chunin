@@ -47,11 +47,14 @@ README.md
 
 ## Partage entre examinateurs
 
-Sans configuration, chaque poste a son propre registre (mode local). Pour un registre
-commun en temps réel, suivez `CONFIGURATION.md` (10 minutes, gratuit, sans carte bancaire),
-puis collez la configuration dans `FIREBASE_CONFIG` en tête du script de `index.html`.
-Le SDK Firebase est chargé depuis internet uniquement dans ce cas ; hors ligne,
-l'application repasse automatiquement en mode local.
+Le partage est **déjà configuré** : la base Firebase du projet `oral-chunin` est renseignée
+dans `FIREBASE_CONFIG` en tête du script, et l'application rejoint d'office la salle commune
+`zenkai`. Les examinateurs n'ont rien à faire d'autre qu'ouvrir le site :
+
+**https://abrahamtarik21-ops.github.io/oral-chunin-app/**
+
+`CONFIGURATION.md` décrit comment cette base a été créée (utile si un jour il faut la
+refaire sur un autre compte). Hors ligne, l'application repasse automatiquement en mode local.
 
 ## Mise en ligne (optionnel)
 

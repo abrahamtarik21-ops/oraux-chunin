@@ -312,13 +312,13 @@ td.ok{color:var(--ok)}td.ko{color:var(--ko)}
 //  Tant que databaseURL est vide, l'application fonctionne en mode local (sans partage).
 // ============================================================
 const FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  databaseURL: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyArF4soCtnoA38KZLPCBZ8kOCADf9KQRKM",
+  authDomain: "oral-chunin.firebaseapp.com",
+  databaseURL: "https://oral-chunin-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "oral-chunin",
+  storageBucket: "oral-chunin.firebasestorage.app",
+  messagingSenderId: "817338290165",
+  appId: "1:817338290165:web:7207dafeb2ed30dedf5abc"
 };
 // Salle rejointe automatiquement à l'ouverture (même registre pour tous les examinateurs).
 // Laisse vide pour obliger chacun à entrer un code de salle.
@@ -558,7 +558,7 @@ function pushPresence(force){
   presPush=setTimeout(()=>{
     const st=presenceState(); const key=JSON.stringify([st.examinateur,st.candidat,st.editing,st.tRun,st.tStart,st.tAcc]);
     if(!force && key===presLast) return; presLast=key;
-    sync.presRef.child(clientId).set(st).catch(()=>{});
+    if(sync.presRef) sync.presRef.child(clientId).set(st).catch(()=>{});
   }, force?0:300);
 }
 function onPresSnap(snap){ sync.peers=snap.val()||{}; renderLive(); }
