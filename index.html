@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Oral de passation Chûnin — Registre des examinateurs</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" onerror="this.remove()">
+<!-- Firebase (partage du registre en direct). Si ces scripts ne se chargent pas (hors ligne), l'application bascule en mode local. -->
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="./vendor/xlsx.full.min.js"></script>
+<script>try{const t=localStorage.getItem('oral-chunin-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f3efe6;--bg-2:#e9e3d6;--panel:#fbf9f4;--ink:#1c1a17;--ink-2:#5c574d;--line:#d6cfbf;
+  --accent:#a8341f;--accent-2:#7a2515;--ok:#2f6b46;--ko:#9c2a2a;--gold:#b58a2e;--shadow:rgba(40,30,15,.10)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#15130f;--bg-2:#1c1914;--panel:#211d17;--ink:#ece5d6;--ink-2:#a79d8b;--line:#3a3328;
+  --accent:#d9573d;--accent-2:#f07a5e;--ok:#7fc39a;--ko:#e07a7a;--gold:#d8ad4e;--shadow:rgba(0,0,0,.45)}}
+:root[data-theme="dark"]{--bg:#15130f;--bg-2:#1c1914;--panel:#211d17;--ink:#ece5d6;--ink-2:#a79d8b;--line:#3a3328;
+  --accent:#d9573d;--accent-2:#f07a5e;--ok:#7fc39a;--ko:#e07a7a;--gold:#d8ad4e;--shadow:rgba(0,0,0,.45)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Zen Kaku Gothic New','Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.5;min-height:100%}
+header{padding:1.6rem 2rem 1.2rem;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg-2),var(--bg));display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+h1{font-family:'Shippori Mincho',Georgia,serif;font-weight:700;font-size:clamp(1.4rem,2.6vw,2rem);letter-spacing:.03em}
+h1 small{display:block;font-family:'Zen Kaku Gothic New',sans-serif;font-weight:400;font-size:.85rem;color:var(--ink-2);letter-spacing:.06em;text-transform:uppercase;margin-top:.15rem}
+.session{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;font-size:.9rem;color:var(--ink-2)}
+.session input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:.4rem .6rem;min-width:11rem}
+.session input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.syncbar{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;padding:.55rem 2rem;border-bottom:1px solid var(--line);background:var(--bg-2);font-size:.85rem;color:var(--ink-2)}
+.syncbar input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:.3rem .55rem;width:11rem;text-transform:lowercase}
+.syncbar input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.syncbar .txt{flex:1;min-width:12rem}
+.dot{width:.6rem;height:.6rem;border-radius:50%;background:var(--ink-2);display:inline-block;flex:none}
+.dot.on{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+.dot.wait{background:var(--gold)}.dot.ko{background:var(--ko)}
+main{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:1.6rem;padding:1.6rem 2rem 3rem;max-width:1400px;margin:0 auto}
+@media (max-width:980px){main{grid-template-columns:1fr}header,.syncbar{padding-left:1rem;padding-right:1rem}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 18px var(--shadow);padding:1.4rem 1.5rem}
+.card h2{font-family:'Shippori Mincho',Georgia,serif;font-weight:500;font-size:1.15rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.head-right{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
+.badge{font-family:'Zen Kaku Gothic New',sans-serif;font-size:.78rem;font-weight:500;color:var(--accent-2);border:1px solid var(--accent);border-radius:999px;padding:.15rem .6rem;letter-spacing:.04em}
+.timer{display:flex;align-items:center;gap:.35rem;font-family:'Zen Kaku Gothic New',sans-serif;font-size:.8rem;color:var(--ink-2);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:.2rem .35rem .2rem .7rem}
+.timer .clock{font-family:'Shippori Mincho',Georgia,serif;font-weight:700;font-size:1.15rem;color:var(--ink);min-width:3.6rem;text-align:center;font-variant-numeric:tabular-nums;line-height:1}
+.timer.run .clock{color:var(--accent-2)}
+.timer.over .clock{color:var(--ko);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.35}}
+.timer button{font:inherit;font-size:.8rem;font-weight:600;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:.2rem .6rem;cursor:pointer;line-height:1.4}
+.timer button:hover{border-color:var(--accent);color:var(--accent-2)}
+.timer button.go{background:var(--accent);color:#fff;border-color:var(--accent)}
+.timer .tgt{font-size:.78rem;color:var(--ink-2);padding-right:.35rem;font-variant-numeric:tabular-nums}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:1rem}
+label{display:block;font-size:.8rem;font-weight:500;color:var(--ink-2);letter-spacing:.04em;text-transform:uppercase;margin-bottom:.3rem}
+input[type=text],input[type=number],textarea,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:.6rem .7rem}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+textarea{min-height:4.4rem;resize:vertical}
+.bloc{border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;background:var(--bg)}
+.bloc-head{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;margin-bottom:.6rem}
+.bloc-head .t{font-family:'Shippori Mincho',Georgia,serif;font-size:1.05rem;font-weight:700}
+.coef{display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--ink-2)}
+.coef input{width:3.4rem;padding:.25rem .4rem;text-align:center}
+.crit{display:grid;grid-template-columns:1fr auto;gap:.5rem 1rem;align-items:start;padding:.7rem 0;border-top:1px dashed var(--line)}
+.crit:first-of-type{border-top:none;padding-top:0}
+.crit .name{font-weight:500}
+.crit .desc{font-size:.82rem;color:var(--ink-2);margin-top:.1rem}
+.crit .val{font-family:'Shippori Mincho',Georgia,serif;font-weight:700;font-size:1.05rem;text-align:right;min-width:4rem}
+.seg{display:flex;gap:.25rem;flex-wrap:wrap;justify-content:flex-end}
+.seg button{font:inherit;font-size:.85rem;font-weight:500;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:.35rem .55rem;cursor:pointer;min-width:2.1rem;transition:background .12s,color .12s,border-color .12s}
+.seg button:hover{border-color:var(--accent)}
+.seg button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sections{grid-column:1 / -1;display:none;flex-direction:column;gap:.5rem;margin-top:.4rem}
+.sections.show{display:flex}
+.secrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem 1rem;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.5rem .7rem}
+.secrow select{padding:.4rem .6rem}
+.avg{font-size:.82rem;color:var(--ink-2);text-align:right}
+.total{margin-top:1.1rem;display:flex;align-items:center;justify-content:space-between;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:.9rem 1.1rem;gap:1rem;flex-wrap:wrap}
+.total .num{font-family:'Shippori Mincho',Georgia,serif;font-size:2.1rem;font-weight:700;line-height:1}
+.total .num span{font-size:1rem;color:var(--ink-2);font-weight:500}
+.formula{font-size:.78rem;color:var(--ink-2);margin-top:.3rem}
+.verdict{font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:.9rem;padding:.3rem .7rem;border-radius:6px}
+.verdict.ok{color:var(--ok);border:1px solid var(--ok)}.verdict.ko{color:var(--ko);border:1px solid var(--ko)}
+.actions{display:flex;gap:.6rem;margin-top:1.1rem;flex-wrap:wrap}
+.btn{font:inherit;font-weight:600;font-size:.95rem;cursor:pointer;border-radius:9px;padding:.7rem 1.2rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);transition:transform .08s}
+.btn:hover{transform:translateY(-1px)}.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}.btn.ghost{background:transparent}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.hint{font-size:.82rem;color:var(--ink-2);margin-top:.6rem}
+.live{display:none;flex-wrap:wrap;gap:.4rem;align-items:center;margin-bottom:.8rem;font-size:.82rem;color:var(--ink-2)}
+.live.show{display:flex}
+.live .pill{display:inline-flex;align-items:center;gap:.4rem;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:.2rem .7rem;color:var(--ink)}
+.live .pill .dot{width:.5rem;height:.5rem}
+.live .pill .dot.busy{background:var(--accent);animation:blink 1.4s steps(2) infinite}
+.live .pill .clk{font-family:'Shippori Mincho',Georgia,serif;font-weight:700;font-variant-numeric:tabular-nums}
+.live .pill .clk.over{color:var(--ko)}
+.filters{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem;margin-bottom:.8rem}
+.filters input,.filters select{padding:.45rem .6rem}
+.filters select{width:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{text-align:left;padding:.55rem .5rem;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-weight:500}
+td.num{font-family:'Shippori Mincho',Georgia,serif;font-weight:700;font-size:1.05rem}
+td.ok{color:var(--ok)}td.ko{color:var(--ko)}
+.tbl-wrap{overflow-x:auto;max-height:52vh;overflow-y:auto;border:1px solid var(--line);border-radius:8px}
+.mini{font:inherit;font-size:.8rem;background:transparent;border:1px solid var(--line);border-radius:6px;padding:.25rem .5rem;cursor:pointer;color:var(--ink)}
+.mini:hover{border-color:var(--accent);color:var(--accent-2)}
+.jsonbar{margin-top:.35rem}
+.jsonbar .mini{font-size:.76rem;padding:.15rem .5rem;color:var(--ink-2);vertical-align:baseline;margin:0 .1rem}
+.mini:disabled{opacity:.5;cursor:not-allowed}
+.empty{padding:2rem 1rem;text-align:center;color:var(--ink-2);font-style:italic}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1rem}
+.stat{background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem}
+.stat b{display:block;font-family:'Shippori Mincho',Georgia,serif;font-size:1.4rem;font-weight:700}
+.stat span{font-size:.75rem;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:1.5rem;z-index:50}
+.modal.show{display:flex}
+.modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.4);padding:1.4rem 1.5rem;max-width:26rem;width:100%}
+.modal-box h3{font-family:'Shippori Mincho',Georgia,serif;font-size:1.1rem;margin-bottom:.6rem}
+.modal-box p{color:var(--ink-2);font-size:.92rem;margin-bottom:1rem;white-space:pre-line}
+.modal-box input{margin-bottom:1rem}
+.modal-actions{display:flex;gap:.6rem;justify-content:flex-end}
+.toast{position:fixed;left:50%;bottom:calc(1.2rem + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:.6rem 1rem;border-radius:8px;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center;z-index:60}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Oral de passation Chûnin<small>Sélection pour la mission de passation — Académie de Konoha</small></h1>
+  <div class="session">
+    <span>Session</span><input id="session" type="text" placeholder="ex. Passation 21e lune">
+    <span>Examinateur</span><input id="examiner" type="text" placeholder="Nom RP">
+    <button type="button" class="mini" id="themeBtn" title="Thème clair / sombre / automatique">Thème : auto</button>
+  </div>
+</header>
+
+<div class="syncbar" id="syncbar">
+  <span class="dot" id="syncDot"></span>
+  <span class="txt" id="syncText">Mode local</span>
+  <span id="syncCtl" style="display:none;align-items:center;gap:.5rem;flex-wrap:wrap">
+    <span>Salle</span><input id="salleInput" type="text" placeholder="ex. konoha-lune21" autocomplete="off" spellcheck="false">
+    <button class="mini" id="joinBtn">Rejoindre</button>
+    <button class="mini" id="inviteBtn" style="display:none">Copier l'invitation</button>
+  </span>
+</div>
+
+<main>
+  <section class="card">
+    <h2>Fiche de notation
+      <span class="head-right">
+        <span class="timer" id="timerBox" title="Minuteur du passage">
+          <span class="clock" id="tmClock">00:00</span>
+          <button type="button" id="tmToggle" class="go">Démarrer</button>
+          <button type="button" id="tmReset" title="Remettre à zéro">↺</button>
+          <span class="tgt" title="Durée du passage">/ 02:00</span>
+        </span>
+        <span class="badge" id="counter">Candidat n°1</span>
+      </span>
+    </h2>
+
+    <div class="row">
+      <div><label for="prenom">Prénom</label><input id="prenom" type="text" autocomplete="off"></div>
+      <div><label for="nom">Nom</label><input id="nom" type="text" autocomplete="off"></div>
+    </div>
+    <div class="row">
+      <div><label for="annees">Années en Genin Confirmé</label><input id="annees" type="number" min="0" max="30" step="1" placeholder="ex. 2"></div>
+      <div><label for="nature">Nature de chakra</label>
+        <select id="nature">
+          <option value="">— Nature —</option>
+          <option>Katon</option><option>Fūton</option><option>Raiton</option><option>Doton</option><option>Suiton</option>
+          <option>Katon + Fūton</option><option>Katon + Raiton</option><option>Katon + Doton</option><option>Katon + Suiton</option>
+          <option>Fūton + Raiton</option><option>Fūton + Doton</option><option>Fūton + Suiton</option>
+          <option>Raiton + Doton</option><option>Raiton + Suiton</option><option>Doton + Suiton</option>
+          <option>Aucune / inconnue</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- BLOC 1 : Investissement & Objectifs -->
+    <div class="bloc">
+      <div class="bloc-head">
+        <div class="t">Investissement &amp; Objectifs <span style="font-family:'Zen Kaku Gothic New';font-weight:400;color:var(--ink-2);font-size:.9rem">— note du bloc <b id="blocVal">0</b> / 10</span></div>
+        <div class="coef">moyenne des deux critères</div>
+      </div>
+
+      <div class="crit">
+        <div>
+          <div class="name">Investissement au sein du village</div>
+          <div class="desc">Choisis le nombre de sections, nomme-les, puis note l'implication réelle dans chacune. La note est la <b>moyenne</b> des sections : une seule section bien tenue vaut autant que trois.</div>
+        </div>
+        <div>
+          <div class="desc" style="text-align:right;margin-bottom:.25rem">Nombre de sections</div>
+          <div class="seg nbsel" id="nbSeg"></div>
+        </div>
+        <div class="sections" id="secBox"></div>
+        <div></div><div class="val"><span id="investVal">0</span> / 10</div>
+      </div>
+
+      <div class="crit">
+        <div>
+          <div class="name">Projets et objectifs</div>
+          <div class="desc">Ambitions du personnage à court, moyen et long terme, cohérence et réalisme</div>
+        </div>
+        <div class="seg" id="projSeg"></div>
+      </div>
+    </div>
+
+    <!-- BONUS -->
+    <div class="bloc">
+      <div class="bloc-head"><div class="t">Bonus</div><div class="coef">ajoutés à la note finale</div></div>
+      <div class="crit">
+        <div>
+          <div class="name">Possède un sensei</div>
+          <div class="desc">Ajoute <b>+0,5</b> à la note finale</div>
+        </div>
+        <div class="seg" id="senseiSeg"></div>
+      </div>
+      <div class="crit">
+        <div>
+          <div class="name">Examens loupés</div>
+          <div class="desc">L'oral n'est accessible qu'après 2 échecs.<br><b>Persévérance :</b> tous les 4 échecs, +0,5 sur la note finale.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem;justify-content:flex-end">
+          <input id="echecNb" type="number" min="2" max="30" step="1" value="2" style="width:5rem;text-align:center;padding:.4rem">
+          <span class="desc">échec(s)</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <label for="comment">Commentaire de l'examinateur</label>
+      <textarea id="comment" placeholder="Points forts, points faibles, remarques pour le jury…"></textarea>
+    </div>
+
+    <div class="total">
+      <div>
+        <div style="font-size:.78rem;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em">Note finale</div>
+        <div class="num"><span id="totalNum">0</span> <span>/ 10</span></div>
+        <div class="formula" id="formula"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.5rem">
+        <div id="verdict" class="verdict ko">Refusé</div>
+        <label style="display:flex;align-items:center;gap:.4rem;text-transform:none;letter-spacing:0;font-size:.85rem;margin:0;cursor:pointer">
+          <input id="special" type="checkbox" style="width:auto"> Cas particulier — admis d'office
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="save">Enregistrer et passer au suivant</button>
+      <button class="btn ghost" id="clear">Vider la fiche</button>
+    </div>
+    <p class="hint">Seuil d'admission : <select id="seuil" style="width:auto;display:inline-block;padding:.2rem .5rem">
+      <option value="4">4 / 10</option><option value="5" selected>5 / 10</option><option value="6">6 / 10</option><option value="7">7 / 10</option>
+    </select> — <span id="storageHint">les fiches sont conservées sur ce navigateur jusqu'à la réinitialisation.</span> Ctrl+Entrée pour enregistrer.</p>
+  </section>
+
+  <section class="card">
+    <h2>Registre <span class="badge" id="count">0 candidat</span></h2>
+    <div class="stats">
+      <div class="stat"><b id="sAdmis">0</b><span>Pot. admis</span></div>
+      <div class="stat"><b id="sRefus">0</b><span>Refusés</span></div>
+      <div class="stat"><b id="sMoy">–</b><span>Moyenne</span></div>
+    </div>
+    <div class="live" id="live"><span>En ce moment :</span></div>
+    <div class="filters">
+      <input id="search" type="text" placeholder="Rechercher un candidat, une section, un examinateur…" autocomplete="off">
+      <select id="sort" title="Trier le registre">
+        <option value="ordre">Ordre de passage</option>
+        <option value="nom">Nom A → Z</option>
+        <option value="note-desc">Note décroissante</option>
+        <option value="note-asc">Note croissante</option>
+        <option value="resultat">Admis d'abord</option>
+        <option value="examinateur">Par examinateur</option>
+      </select>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Candidat</th><th>Note</th><th>Résultat</th><th></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="5" class="empty">Aucun candidat noté pour l'instant.</td></tr></tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="export">Exporter en Excel</button>
+      <button class="btn ghost" id="reset">Réinitialiser la session</button>
+      <input type="file" id="jsonFile" accept=".json,application/json" style="display:none">
+    </div>
+    <p class="hint">Le fichier Excel reprend toutes les fiches avec le détail par section et par critère.</p>
+    <p class="hint jsonbar">Sauvegarde complète (JSON) : <button class="mini" id="exportJson">Sauvegarder</button> <button class="mini" id="importJson">Charger</button> — se recharge ici ou sur un autre poste, fusion sans doublons.</p>
+  </section>
+</main>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3 id="mTitle">Confirmation</h3>
+    <p id="mText"></p>
+    <input id="mInput" type="text" style="display:none">
+    <div class="modal-actions">
+      <button class="btn ghost" id="mNo">Annuler</button>
+      <button class="btn primary" id="mYes">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+//  CONFIGURATION FIREBASE — partage du registre entre examinateurs
+//  Colle ici la configuration de ton projet Firebase (voir CONFIGURATION.md).
+//  Tant que databaseURL est vide, l'application fonctionne en mode local (sans partage).
+// ============================================================
+const FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+
+const SECTIONS = ['Militaire','Académique','Police Militaire','Médicale','Économique','Diplomatie','Bureau des missions','Archéologique','Judiciaire','Hana Do','Scientifique','Arts et Talents','Orphelinat'];
+const TEN = [0,1,2,3,4,5,6,7,8,9,10];
+const TIMER_TARGET = 120; // durée d'un passage en secondes (2 minutes)
+const LS_REG='oral-chunin-v3', LS_META='oral-chunin-meta', LS_TIMER='oral-chunin-timer';
+
+let s = { sections:[], projets:0, echecs:2, sensei:0 }; // echecs = nombre d'échecs
+let registre = [];          // toujours trié par ordre de passage (createdAt)
+let editId = null;          // id de la fiche en cours de modification
+let meta = { session:'', examiner:'', seuil:'5', salle:'', sort:'ordre' };
+const sync = { db:null, code:'', fichesRef:null, metaRef:null, presRef:null, onFiches:null, onMeta:null, onPres:null, connected:false, joined:false, firstSnap:true, pending:new Set(), known:new Set(), peers:{} };
+// identifiant de ce poste (par onglet) pour la présence « qui note qui »
+let clientId=''; try{ clientId=sessionStorage.getItem('oral-chunin-client')||''; if(!clientId){ clientId='c_'+Math.random().toString(36).slice(2,10); sessionStorage.setItem('oral-chunin-client',clientId); } }catch(e){ clientId='c_'+Math.random().toString(36).slice(2,10); }
+const $ = id => document.getElementById(id);
+
+// ---------- Utilitaires ----------
+function uid(){ return 'f_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function hashId(str){ let h=5381; for(let i=0;i<str.length;i++) h=((h<<5)+h+str.charCodeAt(i))|0; return 'h_'+(h>>>0).toString(36); }
+function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtClock(sec){ sec=Math.max(0,Math.floor(sec)); const m=Math.floor(sec/60), r=sec%60; return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0'); }
+function fmtMin(sec){ if(!sec) return ''; const m=Math.round(sec/60); return m<1?'<1 min':m+' min'; }
+function normCode(c){ return String(c||'').toLowerCase().trim().replace(/[^a-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40); }
+function downloadBlob(blob, fname){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+// Rend lisible n'importe quelle fiche, y compris celles enregistrées par les anciennes versions (sans id, examinateur, durée…)
+function normalizeEntry(e){
+  const o = Object.assign({}, e);
+  o.prenom = o.prenom||''; o.nom = o.nom||''; o.annees = o.annees==null?'':String(o.annees); o.nature = o.nature||''; o.comment = o.comment||'';
+  o.sections = Array.isArray(o.sections)? o.sections.map(x=>({name:x.name||'',note:+x.note||0})) : [];
+  o.date = o.date || new Date().toISOString();
+  o.createdAt = Number(o.createdAt) || Date.parse(o.date) || Date.now();
+  o.id = o.id || hashId(o.prenom+'|'+o.nom+'|'+o.date);
+  o.examinateur = o.examinateur||''; o.duree = (typeof o.duree==='number' && o.duree>0)? Math.round(o.duree) : null;
+  o.total = +o.total||0; o.invest = +o.invest||0; o.projets = +o.projets||0; o.bloc = +o.bloc||0; o.persev = +o.persev||0; o.base = +o.base||o.bloc;
+  o.echecs = +o.echecs||2; o.sensei = o.sensei?1:0; o.special = !!o.special; o.seuil = +o.seuil||5;
+  o.resultat = o.resultat || (o.special?'Cas particulier — admis':(o.total>=o.seuil?'Potentiellement admis':'Refusé'));
+  return JSON.parse(JSON.stringify(o)); // supprime les undefined (refusés par Firebase)
+}
+function sortRegistre(){ registre.sort((a,b)=>(a.createdAt-b.createdAt)||(a.id<b.id?-1:1)); }
+
+// ---------- Notation ----------
+function makeSeg(el, steps, labels, onPick){
+  el.innerHTML='';
+  steps.forEach((v,i)=>{
+    const b=document.createElement('button'); b.type='button';
+    b.textContent = labels?labels[i]:String(v); b.dataset.val=v;
+    b.addEventListener('click',()=>{ onPick(v); refreshSeg(el,v); });
+    el.appendChild(b);
+  });
+}
+function refreshSeg(el,val){ el.querySelectorAll('button').forEach(b=>b.classList.toggle('on', parseFloat(b.dataset.val)===val)); }
+
+function setSectionCount(n){
+  while(s.sections.length>n) s.sections.pop();
+  while(s.sections.length<n) s.sections.push({name:'',note:0});
+  renderSections(); compute();
+}
+function renderSections(){
+  const box=$('secBox'); box.innerHTML='';
+  box.classList.toggle('show', s.sections.length>0);
+  s.sections.forEach(sec=>{
+    const row=document.createElement('div'); row.className='secrow';
+    const sel=document.createElement('select');
+    const isOther = sec.name && !SECTIONS.includes(sec.name);
+    sel.innerHTML='<option value="">— Section —</option>'+SECTIONS.map(x=>`<option${sec.name===x?' selected':''}>${x}</option>`).join('')+`<option value="__autre"${isOther?' selected':''}>${isOther?'Autre : '+esc(sec.name):'Autre…'}</option>`;
+    sel.addEventListener('change',()=>{
+      if(sel.value==='__autre'){ askText('Autre section','Nom de la section :', sec.name).then(v=>{ if(v!==null){ sec.name=(v||'').trim(); } renderSections(); compute(); }); }
+      else sec.name=sel.value;
+      compute();
+    });
+    const seg=document.createElement('div'); seg.className='seg';
+    makeSeg(seg, TEN, null, v=>{ sec.note=v; compute(); });
+    row.appendChild(sel); row.appendChild(seg); box.appendChild(row);
+    refreshSeg(seg, sec.note);
+  });
+  refreshSeg($('nbSeg'), s.sections.length);
+}
+function investNote(){
+  if(!s.sections.length) return 0;
+  return Math.round(s.sections.reduce((a,x)=>a+x.note,0)/s.sections.length*10)/10;
+}
+function persevBonus(){ return Math.floor(s.echecs/4)*0.5; }
+
+function finalNote(){
+  const inv=investNote(), bloc=Math.round((inv+s.projets)/2*10)/10;
+  const persev = persevBonus();
+  let total = bloc + (s.sensei?0.5:0) + persev;
+  total = Math.min(10, Math.round(total*10)/10);
+  return {inv, bloc, persev, base:bloc, total};
+}
+function compute(){
+  const r=finalNote();
+  $('investVal').textContent=r.inv;
+  $('blocVal').textContent=r.bloc;
+  $('totalNum').textContent=r.total;
+  $('formula').textContent=`Bloc ${r.bloc}${s.sensei?' + 0,5 sensei':''}${r.persev?' + '+String(r.persev).replace('.',',')+' persévérance':''}`;
+  const special=$('special').checked;
+  const ok=special || r.total>=parseFloat($('seuil').value);
+  const v=$('verdict'); v.textContent=special?'Cas particulier — admis':(ok?'Potentiellement admis':'Refusé'); v.className='verdict '+(ok?'ok':'ko');
+}
+function setState(obj){
+  s = { sections:(obj&&obj.sections?obj.sections.map(x=>({name:x.name,note:x.note})):[]), projets:obj?obj.projets:0, echecs:obj?Math.max(2,obj.echecs):2, sensei:obj?obj.sensei:0 };
+  refreshSeg($('projSeg'), s.projets); $('echecNb').value=s.echecs; refreshSeg($('senseiSeg'), s.sensei);
+  renderSections(); compute();
+}
+function clearFiche(keepTimer){
+  $('prenom').value=''; $('nom').value=''; $('comment').value=''; $('annees').value=''; $('nature').value=''; $('special').checked=false;
+  setState(null); editId=null;
+  $('counter').textContent=`Candidat n°${registre.length+1}`;
+  $('save').textContent='Enregistrer et passer au suivant';
+  if(!keepTimer) timerReset();
+  pushPresence();
+  $('prenom').focus();
+}
+
+// ---------- Modal maison (remplace confirm/prompt) ----------
+let modalResolve=null;
+function closeModal(v){ $('modal').classList.remove('show'); if(modalResolve){ const r=modalResolve; modalResolve=null; r(v); } }
+function ask(title, text){
+  return new Promise(res=>{
+    modalResolve=res;
+    $('mTitle').textContent=title; $('mText').textContent=text;
+    $('mInput').style.display='none'; $('mYes').textContent='Confirmer';
+    $('modal').classList.add('show'); $('mNo').focus();
+  });
+}
+function askText(title, text, val){
+  return new Promise(res=>{
+    modalResolve=res;
+    $('mTitle').textContent=title; $('mText').textContent=text;
+    const i=$('mInput'); i.style.display='block'; i.value=val||''; $('mYes').textContent='Valider';
+    $('modal').classList.add('show'); setTimeout(()=>i.focus(),50);
+  });
+}
+let toastTimer=null;
+function toast(m, long){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'), long?3500:1800); }
+
+// ---------- Persistance locale (cache + mode hors ligne) ----------
+function persistReg(){ try{ localStorage.setItem(LS_REG, JSON.stringify(registre)); }catch(e){} }
+function persistMeta(){ try{
+  meta.session=$('session').value; meta.examiner=$('examiner').value; meta.seuil=$('seuil').value;
+  meta.sort=$('sort').value; meta.salle=sync.code;
+  localStorage.setItem(LS_META, JSON.stringify(meta));
+}catch(e){} }
+function persist(){ persistReg(); persistMeta(); }
+function load(){ try{
+  registre = (JSON.parse(localStorage.getItem(LS_REG)||'[]')||[]).map(normalizeEntry); sortRegistre();
+  const m=JSON.parse(localStorage.getItem(LS_META)||'{}');
+  meta=Object.assign(meta, m);
+  if(m.session)$('session').value=m.session; if(m.examiner)$('examiner').value=m.examiner;
+  if(m.seuil)$('seuil').value=m.seuil;
+  if(m.sort)$('sort').value=m.sort;
+}catch(e){ registre=[]; } }
+
+// ---------- Synchronisation Firebase ----------
+function firebaseReady(){ return typeof firebase!=='undefined' && !!FIREBASE_CONFIG.databaseURL; }
+function initFirebase(){
+  if(!firebaseReady()) return false;
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    sync.db=firebase.database();
+    sync.db.ref('.info/connected').on('value', sn=>{ sync.connected=!!sn.val(); updateSyncUI(); });
+    return true;
+  }catch(err){ console.error(err); toast('Configuration Firebase invalide : '+(err.message||err), true); sync.db=null; return false; }
+}
+function isShared(){ return !!(sync.db && sync.joined); }
+function joinSalle(code){
+  code=normCode(code);
+  if(!sync.db){ toast('Le partage n\'est pas configuré (voir CONFIGURATION.md).', true); return; }
+  if(!code){ toast('Indique un code de salle.'); $('salleInput').focus(); return; }
+  leaveSalle(true);
+  sync.code=code; sync.firstSnap=true; sync.joined=false; sync.known=new Set(); sync.pending=new Set();
+  const base=sync.db.ref('salles/'+code);
+  sync.fichesRef=base.child('fiches'); sync.metaRef=base.child('meta'); sync.presRef=base.child('presence');
+  sync.presRef.child(clientId).onDisconnect().remove();
+  sync.onPres=sync.presRef.on('value', onPresSnap, ()=>{});
+  sync.onFiches=sync.fichesRef.on('value', onFichesSnap, err=>{ console.error(err); toast('Accès refusé à la salle : vérifie les règles de la base (CONFIGURATION.md).', true); leaveSalle(); });
+  sync.onMeta=sync.metaRef.on('value', onMetaSnap, ()=>{});
+  $('salleInput').value=code;
+  try{ history.replaceState(null,'', location.pathname+location.search+'#salle='+code); }catch(e){}
+  persistMeta(); updateSyncUI();
+}
+function leaveSalle(silent){
+  if(sync.fichesRef){ sync.fichesRef.off('value', sync.onFiches); sync.metaRef.off('value', sync.onMeta); sync.presRef.off('value', sync.onPres); sync.presRef.child(clientId).remove().catch(()=>{}); }
+  sync.fichesRef=sync.metaRef=sync.presRef=null; sync.code=''; sync.joined=false; sync.firstSnap=true; sync.peers={}; renderLive();
+  if(!silent){ try{ history.replaceState(null,'', location.pathname+location.search); }catch(e){} persistMeta(); updateSyncUI(); toast('Salle quittée — retour en mode local.'); }
+}
+function onFichesSnap(snap){
+  const val=snap.val()||{};
+  const remote=Object.keys(val).map(k=>normalizeEntry(Object.assign({}, val[k], {id:k})));
+  if(sync.firstSnap){
+    sync.firstSnap=false; sync.joined=true;
+    const remoteIds=new Set(remote.map(e=>e.id));
+    const missing=registre.filter(e=>!remoteIds.has(e.id));
+    registre=remote; sortRegistre(); sync.known=new Set(remoteIds); persist(); render(); updateSyncUI(); pushPresence(true);
+    if(!editId) $('counter').textContent=`Candidat n°${registre.length+1}`;
+    if(missing.length){
+      ask('Fiches locales trouvées', `${missing.length} fiche(s) enregistrée(s) sur ce navigateur ne sont pas dans la salle « ${sync.code} ».\nLes envoyer dans le registre partagé ?`).then(ok=>{
+        if(!ok) return;
+        const upd={}; missing.forEach(e=>{ upd[e.id]=e; sync.pending.add(e.id); });
+        sync.fichesRef.update(upd).then(()=>toast(`${missing.length} fiche(s) partagée(s).`)).catch(err=>toast('Envoi impossible : '+err.message, true));
+      });
+    }
+    return;
+  }
+  // mises à jour suivantes : on signale les nouvelles fiches venues d'un autre poste
+  const news=remote.filter(e=>!sync.known.has(e.id) && !sync.pending.has(e.id));
+  remote.forEach(e=>{ sync.known.add(e.id); sync.pending.delete(e.id); });
+  registre=remote; sortRegistre(); persistReg(); render();
+  if(!editId) $('counter').textContent=`Candidat n°${registre.length+1}`;
+  if(news.length===1) toast(`Nouvelle fiche : ${news[0].prenom} ${news[0].nom}${news[0].examinateur?' ('+news[0].examinateur+')':''}`);
+  else if(news.length>1) toast(`${news.length} nouvelles fiches reçues.`);
+}
+function onMetaSnap(snap){
+  const m=snap.val()||{};
+  if(typeof m.session==='string' && document.activeElement!==$('session')) $('session').value=m.session;
+  if(m.seuil && document.activeElement!==$('seuil')){ $('seuil').value=String(m.seuil); compute(); }
+  persistMeta();
+}
+// ---------- Présence : qui note qui, en direct ----------
+let presPush=null, presLast='';
+function presenceState(){
+  const candidat=(($('prenom').value.trim()+' '+$('nom').value.trim()).trim());
+  return { examinateur:$('examiner').value.trim(), candidat, editing:!!editId, tRun:!!timer.running, tStart:timer.startedAt||0, tAcc:Math.round(timer.acc||0), updatedAt:Date.now() };
+}
+function pushPresence(force){
+  if(!isShared()) return;
+  clearTimeout(presPush);
+  presPush=setTimeout(()=>{
+    const st=presenceState(); const key=JSON.stringify([st.examinateur,st.candidat,st.editing,st.tRun,st.tStart,st.tAcc]);
+    if(!force && key===presLast) return; presLast=key;
+    sync.presRef.child(clientId).set(st).catch(()=>{});
+  }, force?0:300);
+}
+function onPresSnap(snap){ sync.peers=snap.val()||{}; renderLive(); }
+function renderLive(){
+  const box=$('live'); const now=Date.now();
+  const peers=Object.keys(sync.peers).filter(k=>k!==clientId).map(k=>sync.peers[k]).filter(p=>p && now-(p.updatedAt||0)<10*60*1000);
+  if(!isShared() || !peers.length){ if(box.classList.contains('show')){ box.classList.remove('show'); box.innerHTML='<span>En ce moment :</span>'; } return; }
+  peers.sort((a,b)=>(b.candidat?1:0)-(a.candidat?1:0) || (a.examinateur||'').localeCompare(b.examinateur||''));
+  box.innerHTML='<span>En ce moment :</span>'+peers.map(p=>{
+    const who=esc(p.examinateur||'Un examinateur');
+    if(!p.candidat) return '<span class="pill"><span class="dot on"></span>'+who+' — connecté</span>';
+    const el=Math.floor((p.tAcc||0)+(p.tRun?(now-(p.tStart||now))/1000:0));
+    return '<span class="pill"><span class="dot busy"></span>'+who+' '+(p.editing?'modifie':'note')+' <b>'+esc(p.candidat)+'</b> <span class="clk'+(el>=TIMER_TARGET?' over':'')+'">'+fmtClock(el)+'</span></span>';
+  }).join('');
+  box.classList.add('show');
+}
+let metaPush=null;
+function pushMeta(){
+  if(!isShared()) return;
+  clearTimeout(metaPush);
+  metaPush=setTimeout(()=>{ sync.metaRef.update({session:$('session').value, seuil:$('seuil').value, updatedAt:firebase.database.ServerValue.TIMESTAMP}).catch(()=>{}); }, 400);
+}
+function writeEntry(entry){
+  const i=registre.findIndex(e=>e.id===entry.id);
+  if(i>=0) registre[i]=entry; else registre.push(entry);
+  sortRegistre(); persistReg();
+  if(isShared()){ sync.pending.add(entry.id); sync.fichesRef.child(entry.id).set(entry).catch(err=>toast('Envoi impossible : '+err.message, true)); }
+}
+function removeEntry(id){
+  registre=registre.filter(e=>e.id!==id); persistReg();
+  if(isShared()) sync.fichesRef.child(id).remove().catch(err=>toast('Suppression impossible : '+err.message, true));
+}
+function updateSyncUI(){
+  const dot=$('syncDot'), txt=$('syncText'), ctl=$('syncCtl'), join=$('joinBtn'), inv=$('inviteBtn'), hint=$('storageHint');
+  if(!sync.db){
+    dot.className='dot'; ctl.style.display='none';
+    txt.textContent = firebaseReady()? 'Partage indisponible.' : (typeof firebase==='undefined' && FIREBASE_CONFIG.databaseURL ? 'Hors ligne — mode local (les fiches restent sur ce navigateur).' : 'Mode local — partage désactivé. Pour que tous les examinateurs voient le même registre, configure Firebase (voir CONFIGURATION.md).');
+    hint.textContent='les fiches sont conservées sur ce navigateur jusqu\'à la réinitialisation.'; return;
+  }
+  ctl.style.display='inline-flex';
+  if(!sync.code){
+    dot.className='dot'; txt.textContent='Mode local. Entre un code de salle (le même pour tous les examinateurs) puis « Rejoindre » pour partager le registre en direct.';
+    join.textContent='Rejoindre'; inv.style.display='none'; $('salleInput').disabled=false;
+    hint.textContent='les fiches sont conservées sur ce navigateur jusqu\'à la réinitialisation.'; return;
+  }
+  join.textContent='Quitter'; inv.style.display=''; $('salleInput').disabled=true;
+  if(sync.joined && sync.connected){ dot.className='dot on'; txt.textContent=`Salle « ${sync.code} » — registre partagé en direct avec les autres examinateurs.`; hint.textContent=`les fiches sont partagées dans la salle « ${sync.code} » ; chaque examinateur les voit aussitôt.`; }
+  else if(sync.joined){ dot.className='dot ko'; txt.textContent=`Salle « ${sync.code} » — hors ligne, reconnexion automatique… (tes saisies seront envoyées dès le retour du réseau)`; }
+  else { dot.className='dot wait'; txt.textContent=`Connexion à la salle « ${sync.code} »…`; }
+}
+async function copyInvite(){
+  const isWeb=/^https?:/.test(location.protocol);
+  const val=isWeb? location.href.split('#')[0]+'#salle='+sync.code : sync.code;
+  const label=isWeb? 'Lien d\'invitation copié. Envoie-le aux autres examinateurs.' : 'Code de salle copié. Les autres examinateurs doivent l\'entrer dans « Salle » puis « Rejoindre ».';
+  try{ await navigator.clipboard.writeText(val); toast(label, true); }
+  catch(e){ askText('Invitation', isWeb?'Copie ce lien et envoie-le aux autres examinateurs :':'Copie ce code de salle et envoie-le aux autres examinateurs :', val); }
+}
+
+// ---------- Minuteur ----------
+let timer={running:false,startedAt:0,acc:0,warned:false};
+let audioCtx=null;
+function unlockAudio(){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume(); }catch(e){} }
+function ring(){
+  try{
+    unlockAudio(); if(!audioCtx) return;
+    const t0=audioCtx.currentTime;
+    [0,.25,.5,.9,1.15,1.4].forEach((d,i)=>{
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=i<3?880:1046;
+      g.gain.setValueAtTime(0.0001,t0+d); g.gain.exponentialRampToValueAtTime(0.4,t0+d+.02); g.gain.exponentialRampToValueAtTime(0.0001,t0+d+.2);
+      o.connect(g); g.connect(audioCtx.destination); o.start(t0+d); o.stop(t0+d+.22);
+    });
+  }catch(e){}
+  if(navigator.vibrate) try{ navigator.vibrate([200,100,200,100,400]); }catch(e){}
+}
+function timerElapsed(){ return timer.acc + (timer.running? (Date.now()-timer.startedAt)/1000 : 0); }
+function persistTimer(){ try{ localStorage.setItem(LS_TIMER, JSON.stringify(timer)); }catch(e){} }
+function loadTimer(){ try{ const t=JSON.parse(localStorage.getItem(LS_TIMER)||'null'); if(t && typeof t.acc==='number') timer=t; }catch(e){} }
+function timerTick(){
+  // Fin du passage : le chrono s'arrête de lui-même sur 02:00 et sonne. « Reprendre » permet de continuer en dépassement si le jury l'accorde.
+  if(timer.running && !timer.warned && timerElapsed()>=TIMER_TARGET){
+    timer.acc=TIMER_TARGET; timer.running=false; timer.startedAt=0; timer.warned=true; persistTimer();
+    ring(); toast('Temps de passage écoulé (2 min).', true); pushPresence(true);
+  }
+  const el=Math.floor(timerElapsed()); $('tmClock').textContent=fmtClock(el);
+  const over=el>=TIMER_TARGET;
+  const box=$('timerBox'); box.classList.toggle('over',over); box.classList.toggle('run',timer.running);
+  $('tmToggle').textContent=timer.running?'Pause':(el>0?'Reprendre':'Démarrer'); $('tmToggle').classList.toggle('go',!timer.running);
+  if(!over && timer.warned){ timer.warned=false; persistTimer(); }
+}
+function timerToggle(){
+  unlockAudio(); setTimeout(()=>pushPresence(true),0);
+  if(timer.running){ timer.acc=timerElapsed(); timer.running=false; timer.startedAt=0; }
+  else { timer.running=true; timer.startedAt=Date.now(); }
+  persistTimer(); timerTick();
+}
+function timerReset(){ timer={running:false,startedAt:0,acc:0,warned:false}; persistTimer(); timerTick(); pushPresence(); }
+function timerSet(sec){ timer={running:false,startedAt:0,acc:sec||0,warned:false}; persistTimer(); timerTick(); }
+
+// ---------- Fiches ----------
+function save(){
+  const prenom=$('prenom').value.trim(), nom=$('nom').value.trim();
+  if(!prenom&&!nom){ toast('Indique au moins un nom ou un prénom.'); $('prenom').focus(); return; }
+  if(s.sections.some(x=>!x.name)){ toast('Une section n\'a pas de nom.'); return; }
+  const r=finalNote(), seuil=parseFloat($('seuil').value), special=$('special').checked;
+  const prev = editId? registre.find(e=>e.id===editId) : null;
+  const examiner=$('examiner').value.trim();
+  const duree=Math.round(timerElapsed());
+  const entry=normalizeEntry({ id: prev?prev.id:uid(), createdAt: prev?prev.createdAt:Date.now(), date: prev?prev.date:new Date().toISOString(), updatedAt:Date.now(),
+    prenom, nom, annees:$('annees').value, nature:$('nature').value, special, sections:s.sections.map(x=>({name:x.name,note:x.note})), invest:r.inv, projets:s.projets, bloc:r.bloc,
+    echecs:s.echecs, sensei:s.sensei, base:r.base, total:r.total, seuil, persev:r.persev,
+    resultat:special?'Cas particulier — admis':(r.total>=seuil?'Potentiellement admis':'Refusé'), comment:$('comment').value.trim(),
+    examinateur: (prev&&prev.examinateur)||examiner, duree: duree>0?duree:(prev?prev.duree:null) });
+  writeEntry(entry);
+  toast(prev?'Fiche mise à jour.':`${prenom} ${nom} enregistré.`);
+  render(); clearFiche(); pushPresence(true);
+}
+function editEntry(id){
+  const e=registre.find(x=>x.id===id); if(!e) return;
+  const n=registre.indexOf(e)+1;
+  $('prenom').value=e.prenom; $('nom').value=e.nom; $('comment').value=e.comment||''; $('annees').value=e.annees||''; $('nature').value=e.nature||''; $('special').checked=!!e.special;
+  setState(e); editId=id; timerSet(e.duree||0);
+  $('counter').textContent=`Modification du candidat n°${n}`; $('save').textContent='Mettre à jour la fiche'; pushPresence(true);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+async function delEntry(id){
+  const e=registre.find(x=>x.id===id); if(!e) return;
+  const ok=await ask('Supprimer la fiche', `Supprimer définitivement la fiche de ${e.prenom} ${e.nom} ?${isShared()?'\nElle disparaîtra aussi chez les autres examinateurs.':''}`); if(!ok) return;
+  removeEntry(id); render();
+  if(editId===id) clearFiche(); else if(!editId) $('counter').textContent=`Candidat n°${registre.length+1}`;
+  toast('Fiche supprimée.');
+}
+function matches(e,q){ return [e.prenom,e.nom,e.examinateur,e.nature,e.resultat,e.comment,...e.sections.map(x=>x.name)].join(' ').toLowerCase().includes(q); }
+function render(){
+  const tb=$('rows'); const total=registre.length;
+  if(!total){ tb.innerHTML='<tr><td colspan="5" class="empty">Aucun candidat noté pour l\'instant.</td></tr>'; $('count').textContent='0 candidat'; $('sAdmis').textContent='0'; $('sRefus').textContent='0'; $('sMoy').textContent='–'; $('export').disabled=true; $('exportJson').disabled=true; return; }
+  $('export').disabled=false; $('exportJson').disabled=false;
+  const q=$('search').value.trim().toLowerCase(), sort=$('sort').value;
+  let list=registre.map((e,i)=>({e,n:i+1}));
+  if(q) list=list.filter(x=>matches(x.e,q));
+  const cmp={
+    'ordre':(a,b)=>a.n-b.n,
+    'nom':(a,b)=>(a.e.nom+' '+a.e.prenom).localeCompare(b.e.nom+' '+b.e.prenom,'fr',{sensitivity:'base'})||a.n-b.n,
+    'note-desc':(a,b)=>b.e.total-a.e.total||a.n-b.n,
+    'note-asc':(a,b)=>a.e.total-b.e.total||a.n-b.n,
+    'resultat':(a,b)=>((b.e.resultat!=='Refusé')-(a.e.resultat!=='Refusé'))||b.e.total-a.e.total||a.n-b.n,
+    'examinateur':(a,b)=>(a.e.examinateur||'~').localeCompare(b.e.examinateur||'~','fr',{sensitivity:'base'})||a.n-b.n
+  }[sort]||((a,b)=>a.n-b.n);
+  list.sort(cmp);
+  $('count').textContent=`${total} candidat${total>1?'s':''}${list.length!==total?` · ${list.length} affiché${list.length>1?'s':''}`:''}`;
+  tb.innerHTML='';
+  if(!list.length) tb.innerHTML='<tr><td colspan="5" class="empty">Aucune fiche ne correspond à la recherche.</td></tr>';
+  list.forEach(({e,n})=>{
+    const tr=document.createElement('tr'); const ok=e.resultat!=='Refusé';
+    const bits=[esc(e.sections.map(x=>x.name).join(', ')||'Aucune section')];
+    if(e.sensei) bits.push('sensei'); if(e.nature) bits.push(esc(e.nature));
+    if(e.annees!==''&&e.annees!==undefined) bits.push(esc(e.annees)+' an(s) GC');
+    if(e.duree) bits.push(fmtMin(e.duree)); if(e.examinateur) bits.push('exam. '+esc(e.examinateur));
+    if(e.special) bits.push('<b>cas particulier</b>');
+    tr.innerHTML=`<td>${n}</td><td><b>${esc(e.prenom)} ${esc(e.nom)}</b><div class="desc">${bits.join(' · ')}</div></td><td class="num">${e.total}</td><td class="${ok?'ok':'ko'}">${esc(e.resultat)}</td><td style="white-space:nowrap"><button class="mini" data-e="${esc(e.id)}">Modifier</button> <button class="mini" data-d="${esc(e.id)}">Suppr.</button></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('[data-e]').forEach(b=>b.addEventListener('click',()=>editEntry(b.dataset.e)));
+  tb.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('click',()=>delEntry(b.dataset.d)));
+  const admis=registre.filter(e=>e.resultat!=='Refusé').length;
+  $('sAdmis').textContent=admis; $('sRefus').textContent=total-admis;
+  $('sMoy').textContent=(registre.reduce((a,e)=>a+e.total,0)/total).toFixed(1);
+}
+
+// ---------- Export Excel ----------
+function exportXlsx(){
+  if(!registre.length) return;
+  if(typeof XLSX==='undefined'){ toast('La librairie Excel n\'a pas pu se charger.'); return; }
+  const session=$('session').value.trim()||'Oral Chûnin', examiner=$('examiner').value.trim()||'';
+  const header=['#','Prénom','Nom','Années Genin Confirmé','Nature','Nb sections','Sections (note /10)','Investissement /10','Projets /10','Bloc Invest.+Objectifs /10','Sensei','Examens loupés','Bonus persévérance','Note finale /10','Seuil','Cas particulier','Résultat','Durée oral (min)','Commentaire','Date','Examinateur','Session'];
+  const rows=registre.map((e,i)=>[i+1,e.prenom,e.nom,e.annees||'',e.nature||'',e.sections.length,e.sections.map(x=>`${x.name} (${x.note})`).join(' ; '),e.invest,e.projets,e.bloc,e.sensei?'Oui (+0,5)':'Non',e.echecs,e.persev||0,e.total,e.seuil,e.special?'Oui':'Non',e.resultat,e.duree?Math.round(e.duree/60*10)/10:'',e.comment||'',new Date(e.date).toLocaleString('fr-CH'),e.examinateur||examiner,session]);
+  const ws=XLSX.utils.aoa_to_sheet([header,...rows]);
+  ws['!cols']=header.map(h=>({wch:h.startsWith('Sections')?36:h==='Commentaire'?40:(h==='Prénom'||h==='Nom'||h==='Examinateur')?16:Math.max(10,h.length+2)}));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Résultats');
+  const admis=registre.filter(e=>e.resultat!=='Refusé');
+  const examinateurs=[...new Set(registre.map(e=>e.examinateur).filter(Boolean))];
+  const ws2=XLSX.utils.aoa_to_sheet([['Session',session],['Salle partagée',sync.code||'—'],['Examinateur(s)',examinateurs.length?examinateurs.join(', '):examiner],['Candidats',registre.length],['Admis',admis.length],['Refusés',registre.length-admis.length],['Moyenne',(registre.reduce((a,e)=>a+e.total,0)/registre.length).toFixed(2)],[],['Potentiellement admis'],...admis.map(e=>[`${e.prenom} ${e.nom}`,e.total])]);
+  ws2['!cols']=[{wch:22},{wch:30}]; XLSX.utils.book_append_sheet(wb,ws2,'Synthèse');
+  const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const fname=`${session.replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_')||'oral_chunin'}.xlsx`;
+  try{
+    downloadBlob(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), fname);
+    toast('Fichier Excel téléchargé.');
+  }catch(err){ toast('Export impossible : '+(err&&err.message?err.message:'erreur inconnue')); }
+}
+
+// ---------- Sauvegarde / chargement JSON ----------
+function exportJson(){
+  if(!registre.length) return;
+  const session=$('session').value.trim()||'Oral Chûnin';
+  const data={ app:'oral-chunin', version:4, exportedAt:new Date().toISOString(), session, seuil:$('seuil').value, salle:sync.code||'', fiches:registre };
+  const fname=`${session.replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_')||'oral_chunin'}_registre.json`;
+  try{ downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), fname); toast('Sauvegarde JSON téléchargée.'); }
+  catch(err){ toast('Sauvegarde impossible : '+(err&&err.message?err.message:'erreur inconnue')); }
+}
+function importJsonFile(file){
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    let data; try{ data=JSON.parse(reader.result); }catch(e){ toast('Ce fichier n\'est pas un JSON valide.', true); return; }
+    const raw=Array.isArray(data)?data:(data&&(data.fiches||data.registre))||[];
+    const fiches=raw.filter(e=>e&&typeof e==='object'&&(e.prenom||e.nom)&&typeof e.total!=='undefined').map(normalizeEntry);
+    if(!fiches.length){ toast('Aucune fiche reconnue dans ce fichier.', true); return; }
+    const ids=new Set(registre.map(e=>e.id));
+    const nouvelles=fiches.filter(e=>!ids.has(e.id)).length, maj=fiches.length-nouvelles;
+    const ok=await ask('Charger un registre', `Le fichier contient ${fiches.length} fiche(s) : ${nouvelles} nouvelle(s), ${maj} déjà présente(s) (elles seront mises à jour).\nAjouter au registre${isShared()?' partagé de la salle « '+sync.code+' »':''} ?`);
+    if(!ok) return;
+    const wasEmpty=!registre.length;
+    fiches.forEach(e=>writeEntry(e));
+    // session et seuil du fichier repris seulement si on part d'un registre vide (reprise d'une session commencée ailleurs)
+    if(data&&!Array.isArray(data)&&wasEmpty){ if(data.session&&!$('session').value) $('session').value=data.session; if(data.seuil) $('seuil').value=String(data.seuil); pushMeta(); }
+    persist(); render(); compute(); if(!editId) $('counter').textContent=`Candidat n°${registre.length+1}`;
+    toast(`${fiches.length} fiche(s) chargée(s).`);
+  };
+  reader.onerror=()=>toast('Lecture du fichier impossible.', true);
+  reader.readAsText(file);
+}
+
+// ---------- Démarrage ----------
+document.addEventListener('DOMContentLoaded',()=>{
+  makeSeg($('nbSeg'), [0,1,2,3,4], null, n=>setSectionCount(n));
+  makeSeg($('projSeg'), TEN, null, v=>{ s.projets=v; compute(); });
+  $('echecNb').addEventListener('input',()=>{ s.echecs=Math.max(2,parseInt($('echecNb').value)||2); compute(); });
+  makeSeg($('senseiSeg'), [0,1], ['Non','Oui'], v=>{ s.sensei=v; compute(); });
+  load(); loadTimer(); render(); clearFiche(true); timerTick(); setInterval(()=>{ timerTick(); renderLive(); }, 500); setInterval(()=>pushPresence(true), 60000);
+  ['prenom','nom'].forEach(id=>$(id).addEventListener('input',()=>pushPresence()));
+  // Thème clair / sombre / auto
+  const THEMES=['auto','light','dark'], TL={auto:'auto',light:'clair',dark:'sombre'};
+  let theme='auto'; try{ theme=localStorage.getItem('oral-chunin-theme')||'auto'; }catch(e){}
+  const applyTheme=()=>{ if(theme==='auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme=theme; $('themeBtn').textContent='Thème : '+TL[theme]; try{ localStorage.setItem('oral-chunin-theme',theme); }catch(e){} };
+  applyTheme(); $('themeBtn').addEventListener('click',()=>{ theme=THEMES[(THEMES.indexOf(theme)+1)%THEMES.length]; applyTheme(); });
+  $('save').addEventListener('click',save); $('clear').addEventListener('click',()=>clearFiche());
+  $('seuil').addEventListener('input',()=>{ compute(); persistMeta(); pushMeta(); });
+  $('special').addEventListener('change',compute);
+  $('session').addEventListener('input',()=>{ persistMeta(); pushMeta(); }); $('examiner').addEventListener('input',()=>{ persistMeta(); pushPresence(); });
+  $('search').addEventListener('input',render); $('sort').addEventListener('change',()=>{ persistMeta(); render(); });
+  $('tmToggle').addEventListener('click',timerToggle); $('tmReset').addEventListener('click',timerReset);
+  $('export').addEventListener('click',exportXlsx);
+  $('exportJson').addEventListener('click',exportJson);
+  $('importJson').addEventListener('click',()=>$('jsonFile').click());
+  $('jsonFile').addEventListener('change',()=>{ const f=$('jsonFile').files[0]; if(f) importJsonFile(f); $('jsonFile').value=''; });
+  $('reset').addEventListener('click',async()=>{
+    if(!registre.length){ clearFiche(); toast('Le registre est déjà vide.'); return; }
+    const ok=await ask('Réinitialiser la session', `Effacer les ${registre.length} fiches de cette session ?${isShared()?' Elles seront effacées pour TOUS les examinateurs de la salle « '+sync.code+' ».':''}\nPense à exporter avant.`);
+    if(!ok) return;
+    registre=[]; persistReg();
+    if(isShared()) sync.fichesRef.remove().catch(err=>toast('Effacement impossible : '+err.message, true));
+    render(); clearFiche(); toast('Session réinitialisée.');
+  });
+  $('joinBtn').addEventListener('click',()=>{ if(sync.code) leaveSalle(); else joinSalle($('salleInput').value); });
+  $('salleInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); if(!sync.code) joinSalle($('salleInput').value); } });
+  $('inviteBtn').addEventListener('click',copyInvite);
+  $('mYes').addEventListener('click',()=>closeModal($('mInput').style.display==='none'?true:$('mInput').value));
+  $('mNo').addEventListener('click',()=>closeModal($('mInput').style.display==='none'?false:null));
+  $('modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal($('mInput').style.display==='none'?false:null); });
+  $('mInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); closeModal($('mInput').value); } });
+  document.addEventListener('keydown',e=>{
+    if($('modal').classList.contains('show')){ if(e.key==='Escape') closeModal($('mInput').style.display==='none'?false:null); return; }
+    if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ e.preventDefault(); save(); }
+  });
+  // Partage : Firebase est chargé en « defer », donc disponible ici. Salle depuis le lien (#salle=code) ou la dernière utilisée.
+  if(initFirebase()){
+    const fromHash=(location.hash.match(/salle=([^&]+)/)||[])[1];
+    const code=normCode(fromHash?decodeURIComponent(fromHash):meta.salle);
+    if(code) joinSalle(code); else { $('salleInput').value=''; }
+  }
+  updateSyncUI();
+});
+</script>
+</body>
+</html>
