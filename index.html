@@ -320,6 +320,9 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "",
   appId: ""
 };
+// Salle rejointe automatiquement à l'ouverture (même registre pour tous les examinateurs).
+// Laisse vide pour obliger chacun à entrer un code de salle.
+const DEFAULT_SALLE = "zenkai";
 
 const SECTIONS = ['Militaire','Académique','Police Militaire','Médicale','Économique','Diplomatie','Bureau des missions','Archéologique','Judiciaire','Hana Do','Scientifique','Arts et Talents','Orphelinat'];
 const TEN = [0,1,2,3,4,5,6,7,8,9,10];
@@ -509,7 +512,7 @@ function joinSalle(code){
 function leaveSalle(silent){
   if(sync.fichesRef){ sync.fichesRef.off('value', sync.onFiches); sync.metaRef.off('value', sync.onMeta); sync.presRef.off('value', sync.onPres); sync.presRef.child(clientId).remove().catch(()=>{}); }
   sync.fichesRef=sync.metaRef=sync.presRef=null; sync.code=''; sync.joined=false; sync.firstSnap=true; sync.peers={}; renderLive();
-  if(!silent){ try{ history.replaceState(null,'', location.pathname+location.search); }catch(e){} persistMeta(); updateSyncUI(); toast('Salle quittée — retour en mode local.'); }
+  if(!silent){ try{ history.replaceState(null,'', location.pathname+location.search); }catch(e){} persistMeta(); $('salleInput').value=DEFAULT_SALLE; updateSyncUI(); toast('Salle quittée — retour en mode local.'); }
 }
 function onFichesSnap(snap){
   const val=snap.val()||{};
@@ -597,7 +600,7 @@ function updateSyncUI(){
   }
   ctl.style.display='inline-flex';
   if(!sync.code){
-    dot.className='dot'; txt.textContent='Mode local. Entre un code de salle (le même pour tous les examinateurs) puis « Rejoindre » pour partager le registre en direct.';
+    dot.className='dot'; txt.textContent=DEFAULT_SALLE?`Mode local. Clique « Rejoindre » pour revenir dans la salle commune « ${DEFAULT_SALLE} » (ou entre un autre code de salle).`:'Mode local. Entre un code de salle (le même pour tous les examinateurs) puis « Rejoindre » pour partager le registre en direct.';
     join.textContent='Rejoindre'; inv.style.display='none'; $('salleInput').disabled=false;
     hint.textContent='les fiches sont conservées sur ce navigateur jusqu\'à la réinitialisation.'; return;
   }
@@ -809,7 +812,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(isShared()) sync.fichesRef.remove().catch(err=>toast('Effacement impossible : '+err.message, true));
     render(); clearFiche(); toast('Session réinitialisée.');
   });
-  $('joinBtn').addEventListener('click',()=>{ if(sync.code) leaveSalle(); else joinSalle($('salleInput').value); });
+  $('joinBtn').addEventListener('click',()=>{ if(sync.code) leaveSalle(); else joinSalle($('salleInput').value||DEFAULT_SALLE); });
   $('salleInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); if(!sync.code) joinSalle($('salleInput').value); } });
   $('inviteBtn').addEventListener('click',copyInvite);
   $('mYes').addEventListener('click',()=>closeModal($('mInput').style.display==='none'?true:$('mInput').value));
@@ -823,7 +826,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Partage : Firebase est chargé en « defer », donc disponible ici. Salle depuis le lien (#salle=code) ou la dernière utilisée.
   if(initFirebase()){
     const fromHash=(location.hash.match(/salle=([^&]+)/)||[])[1];
-    const code=normCode(fromHash?decodeURIComponent(fromHash):meta.salle);
+    const code=normCode(fromHash?decodeURIComponent(fromHash):(meta.salle||DEFAULT_SALLE));
     if(code) joinSalle(code); else { $('salleInput').value=''; }
   }
   updateSyncUI();

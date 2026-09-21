@@ -103,11 +103,15 @@ directement la bonne salle (`…/index.html#salle=code`).
 
 ## 7. Utilisation au quotidien
 
-1. Le responsable de la session choisit un **code de salle** (ex. `konoha-lune21-7f3k`),
-   l'entre dans la barre « Salle » et clique **Rejoindre**. Le point devient vert.
-2. Il clique **Copier l'invitation** et envoie le code (ou le lien) aux autres examinateurs.
-3. Chaque examinateur entre **son nom RP** dans « Examinateur », rejoint la même salle,
-   et note ses candidats. Chaque fiche enregistrée apparaît chez tout le monde en
+Les examinateurs n'ont **rien à configurer** : à l'ouverture, l'application rejoint
+automatiquement la salle commune (`zenkai`, réglable via `DEFAULT_SALLE` en tête du
+script). Le point vert dans la barre confirme la connexion.
+
+1. Envoie simplement le lien du site aux examinateurs.
+2. Pour un jury séparé (deux sessions en parallèle), il suffit de cliquer **Quitter**,
+   d'entrer un autre code de salle et **Rejoindre** ; **Copier l'invitation** donne
+   alors un lien qui ouvre directement cette salle-là.
+3. Chaque examinateur entre **son nom RP** dans « Examinateur » et note ses candidats. Chaque fiche enregistrée apparaît chez tout le monde en
    moins d'une seconde, avec le nom de l'examinateur qui l'a notée. Le bandeau
    « En ce moment » du registre montre qui est connecté et qui note quel candidat,
    avec le chrono du passage.
